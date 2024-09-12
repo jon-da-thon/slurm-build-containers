@@ -7,7 +7,7 @@ EOF
 
 
 ## Build munge
-FROM ubuntu:22.04 AS mungebuilder
+FROM ubuntu:20.04 AS mungebuilder
 ARG MUNGE_RELEASE_FILE=munge-0.5.16/munge-0.5.16.tar.xz.asc
 SHELL [ "/bin/bash", "-c" ]
 RUN <<EOF
@@ -39,10 +39,10 @@ MUNGE_RELEASE_FILE=${MUNGE_RELEASE_FILE%.asc}
 mkdir src/
 tar -C src/ -xaf $MUNGE_RELEASE_FILE
 cd src/*/
-./configure --prefix=/tmp/munge-install
+./configure --prefix=''
 make
 # make check        # TODO munge tests way broken :C
-make install
+make install DESTDIR=/tmp/munge-install
 EOF
 
 
@@ -57,12 +57,14 @@ set -eo pipefail
 id
 mkdir /out
 cd /out
-fpm -s dir -t deb -v 1.0 -n munge-${MUNGE_VERSION} --prefix=/usr -C /tmp/munge-install .
+munge_0ver=${MUNGE_VERSION#*.} 
+munge_0ver=${munge_0ver%%.*}
+fpm -s dir -t deb -v ${MUNGE_VERSION} -n munge${munge_0ver} -d 'munge authentication utility' --prefix=/tmp/munge-install -C /tmp/munge-install .
 EOF
 
 
 ## Build slurm
-FROM ubuntu:22.04 AS slurmbuilder
+FROM ubuntu:20.04 AS slurmbuilder
 ARG SLURM_RELEASE_URL=https://download.schedmd.com/slurm/slurm-24.05.3.tar.bz2
 ARG SLURM_RELEASE_SHA1=8eee47b2517ee3a31d4f281de179d6a60fbdcb14
 SHELL [ "/bin/bash", "-c" ]
@@ -75,7 +77,6 @@ apt-get install -y --no-install-suggests --no-install-recommends \
     ca-certificates \
     wget \
     build-essential \
-    gnupg2 \
     coreutils
 wget ${SLURM_RELEASE_URL}
 slurm_filename=$(basename ${SLURM_RELEASE_URL})
@@ -90,10 +91,10 @@ dpkg -i /out/*.deb
 mkdir src/
 tar -C src/ -xaf $slurm_filename
 cd src/*/
-./configure --prefix=/tmp/slurm-install
+./configure --prefix=''
 make
 # make check        # TODO munge tests way broken :C
-make install
+make install DESTDIR=/tmp/slurm-install
 EOF
 
 
@@ -108,7 +109,7 @@ set -eo pipefail
 id
 mkdir /out
 cd /out
-fpm -s dir -t deb -v 1.0 -n slurm-${SLURM_VERSION} --prefix=/usr -C /tmp/slurm-install .
+fpm -s dir -t deb -v ${SLURM_VERSION} -n slurm${SLURM_VERSION%%.*} -d 'slurm HPC workload manager and scheduler' -C /tmp/slurm-install .
 EOF
 
 
