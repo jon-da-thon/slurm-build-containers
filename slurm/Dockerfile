@@ -39,7 +39,12 @@ MUNGE_RELEASE_FILE=${MUNGE_RELEASE_FILE%.asc}
 mkdir src/
 tar -C src/ -xaf $MUNGE_RELEASE_FILE
 cd src/*/
-./configure --prefix=''
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib \
+  --localstatedir=/var \
+  --sysconfdir=/etc \
+  --with-systemdunitdir=/lib/systemd/system
 make
 # make check        # TODO munge tests way broken :C
 make install DESTDIR=/tmp/munge-install
@@ -59,7 +64,16 @@ mkdir /out
 cd /out
 munge_0ver=${MUNGE_VERSION#*.} 
 munge_0ver=${munge_0ver%%.*}
-fpm -s dir -t deb -v ${MUNGE_VERSION} -n munge${munge_0ver} -d 'munge authentication utility' --prefix=/tmp/munge-install -C /tmp/munge-install .
+cat <<\FOOO > before-munge.sh
+adduser --system munge
+addgroup --system munge
+FOOO
+chmod +x before-munge.sh
+# fpm -s dir -t deb -v ${MUNGE_VERSION} -n munge --prefix=/tmp/munge-install -C /tmp/munge-install .
+fpm -s dir -t deb -v ${MUNGE_VERSION} -n munge -C /tmp/munge-install \
+  --description="munge auth library" \
+  --before-install=before-munge.sh --deb-user=munge \
+  .
 EOF
 
 
@@ -86,12 +100,43 @@ apt-get install -y --no-install-suggests --no-install-recommends \
     bzip2 \
     pkg-config \
     zlib1g-dev \
-    python3
+    python3 \
+    bash-completion \
+    debhelper \
+    dh-exec \
+    hdf5-helpers \
+    libcurl4-openssl-dev \
+    libdbus-1-dev \
+    libfreeipmi-dev \
+    libgtk2.0-dev \
+    libhdf5-dev \
+    libhttp-parser-dev \
+    libhwloc-dev \
+    libipmimonitoring-dev \
+    libjson-c-dev \
+    libjwt-dev \
+    liblua5.3-dev \
+    liblz4-dev \
+    libmariadb-dev \
+    libncurses-dev \
+    libpam0g-dev \
+    libperl-dev \
+    libpmix-dev \
+    librdkafka-dev \
+    librrd-dev \
+    libyaml-dev \
+    man2html-base \
+    po-debconf
 dpkg -i /out/*.deb
 mkdir src/
 tar -C src/ -xaf $slurm_filename
 cd src/*/
-./configure --prefix=''
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib \
+  --localstatedir=/var \
+  --sysconfdir=/etc \
+  --with-systemdsystemunitdir=/lib/systemd/system
 make
 # make check        # TODO munge tests way broken :C
 make install DESTDIR=/tmp/slurm-install
@@ -109,7 +154,18 @@ set -eo pipefail
 id
 mkdir /out
 cd /out
-fpm -s dir -t deb -v ${SLURM_VERSION} -n slurm${SLURM_VERSION%%.*} -d 'slurm HPC workload manager and scheduler' -C /tmp/slurm-install .
+cat <<\FOOO > before-slurm.sh
+adduser --system slurm
+addgroup --system slurm
+FOOO
+fpm -s dir -t deb -v ${SLURM_VERSION} -n slurm -C /tmp/slurm-install \
+  --description="slurm workload manager and HPC scheduler" \
+  -d libhwloc15 \
+  -d libpam-runtime \
+  -d liblz4-1 \
+  -d libcap-ng0 \
+  --before-install=before-slurm.sh --deb-user=slurm \
+  .
 EOF
 
 
